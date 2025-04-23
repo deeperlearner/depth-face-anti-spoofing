@@ -1,0 +1,160 @@
+{
+    "n_gpu": 1,
+    "root_dir": "./",
+    "name": "dataset_model",
+    "cross_validation": {
+        "repeat_time": 1,
+        "k_fold": 1
+    },
+    "optuna": {
+        "n_trials": 0,
+        "is_ftn": true,
+        "module": "tune.objective",
+        "type": "objective"
+    },
+
+    "datasets": {
+        "imbalanced": false,
+        "train": {
+            "data": {
+                "module": "data_loaders.*_dataset",
+                "type": "*Dataset",
+                "kwargs": {
+                    "data_dir": "./data",
+                    "label_path": null,
+                    "mode": "train"
+                }
+            }
+        },
+        "valid": {
+        },
+        "test": {
+            "data": {
+                "module": "data_loaders.*_dataset",
+                "type": "*Dataset",
+                "kwargs": {
+                    "data_dir": "./data",
+                    "label_path": null,
+                    "mode": "test"
+                }
+            }
+        }
+    },
+    "data_loaders": {
+        "train": {
+            "data": {
+                "module": "data_loaders.valid_loader",
+                "type": "ValidDataLoader",
+                "kwargs": {
+                    "validation_split": 0.2,
+                    "DataLoader_kwargs": {
+                        "batch_size": 64,
+                        "shuffle": true,
+                        "num_workers": 4
+                    },
+                    "do_transform": false
+                }
+            }
+        },
+        "valid": {
+        },
+        "test": {
+            "data": {
+                "module": "data_loaders.valid_loader",
+                "type": "ValidDataLoader",
+                "kwargs": {
+                    "validation_split": 0,
+                    "DataLoader_kwargs": {
+                        "batch_size": 64,
+                        "shuffle": false,
+                        "num_workers": 4
+                    },
+                    "do_transform": false
+                }
+            }
+        }
+    },
+    "models": {
+        "model": {
+            "module": "models.model",
+            "type": "MyModel"
+        }
+    },
+    "losses": {
+        "nll": {
+            "is_ftn": true,
+            "module": "models.loss",
+            "type": "nll_loss"
+        },
+        "bce": {
+            "module": "models.loss",
+            "type": "BCELoss"
+        },
+        "balanced_bce": {
+            "is_ftn": true,
+            "module": "models.loss",
+            "type": "balanced_bce_loss"
+        },
+        "focal": {
+            "is_ftn": true,
+            "module": "models.loss",
+            "type": "binary_focal_loss"
+        }
+    },
+    "metrics": {
+        "per_iteration": ["binary_accuracy"],
+        "per_epoch": ["TPR", "PPV", "AUROC", "AUPRC"],
+        "pick_threshold": {
+            "is_ftn": true,
+            "module": "models.metric",
+            "type": "Youden_J",
+            "kwargs": {
+                "beta": 1.0
+            }
+        }
+    },
+    "optimizers": {
+        "model": {
+            "module": "torch.optim",
+            "type": "Adam",
+            "kwargs": {
+                "lr": 0.001
+            }
+        }
+    },
+    "lr_schedulers": {
+        "model": {
+            "module": "torch.optim.lr_scheduler",
+            "type": "StepLR",
+            "kwargs": {
+                "step_size": 50,
+                "gamma": 0.1
+            }
+        }
+    },
+    "trainers": {
+        "trainer": {
+            "module": "trainers.trainer",
+            "type": "Trainer",
+            "kwargs": {
+                "apex": false,
+
+                "epochs": 2,
+                "len_epoch": null,
+
+                "save_period": 5,
+                "save_the_best": true,
+                "verbosity": 2,
+
+                "monitor": "min val_loss",
+                "early_stop": 10,
+
+                "tensorboard": false
+            }
+        }
+    },
+    "tester": {
+        "module": "testers.tester",
+        "type": "Tester"
+    }
+}

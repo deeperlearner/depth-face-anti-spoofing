@@ -1,0 +1,12 @@
+black
+matplotlib
+numpy
+pandas
+Pillow
+optuna
+requests
+scikit-learn
+tensorboard
+torch>=1.4.0
+torchvision>=0.5.0
+tqdm
