@@ -61,9 +61,10 @@ while getopts "abc" flag; do
       SECONDS=0
       TYPE="run"
 
-      CONFIG="dataset_model"
-      EXP="dataset_model"
+      CONFIG="DQNet_with_clf"
+      EXP="DQNet_with_clf"
       RUN_ID=${VERSION}
+      python3 mains/main.py -c "configs/$CONFIG.json" --mode train --run_id $RUN_ID --name $EXP --k_fold 1
 
       time_log
       ;;
