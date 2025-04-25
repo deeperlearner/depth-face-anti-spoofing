@@ -17,7 +17,7 @@ class Tester:
         self.model.eval()
         with torch.no_grad():
             print("testing...")
-            test_loader = self.test_data_loaders["data"]
+            test_loader = self.test_data_loaders["MSU"]
 
             if len(self.metrics_epoch) > 0:
                 outputs = torch.FloatTensor().to(self.device)

@@ -79,7 +79,7 @@ class DQNetclf(nn.Module):
         output = TF.resize(output, (32, 32))
         output_flat = output.view(-1, 1*32*32)
         output_clf = self.clf(output_flat)
-        return output_clf, output_flat
+        return output_clf
 
 def conv_layer(in_channels, out_channels):
     return nn.Sequential(

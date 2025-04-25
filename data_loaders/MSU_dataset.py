@@ -84,6 +84,6 @@ class MSUDataset(Dataset):
     def __len__(self):
         if self.mode == "train":
             return max(len(self.attack_df), len(self.face_df)) * 2
-            # return 256
+            # return 2560
         else:
             return len(self.attack_df) + len(self.face_df)

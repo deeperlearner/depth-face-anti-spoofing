@@ -25,15 +25,17 @@ class DQTrainer(BaseTrainer):
         if resume is not None:
             self._resume_checkpoint(resume)
 
+        # datasets
+        self.dataset_name = "MSU"
         # data_loaders
-        self.do_validation = self.valid_data_loaders["data"] is not None
+        self.do_validation = self.valid_data_loaders[self.dataset_name] is not None
         if self.len_epoch is None:
             # epoch-based training
-            self.len_epoch = len(self.train_data_loaders["data"])
+            self.len_epoch = len(self.train_data_loaders[self.dataset_name])
         else:
             # iteration-based training
-            self.train_data_loaders["data"] = inf_loop(self.train_data_loaders["data"])
-        self.log_step = int(np.sqrt(self.train_data_loaders["data"].batch_size))
+            self.train_data_loaders[self.dataset_name] = inf_loop(self.train_data_loaders[self.dataset_name])
+        self.log_step = int(np.sqrt(self.train_data_loaders[self.dataset_name].batch_size))
         self.train_step, self.valid_step = 0, 0
 
         # models
@@ -46,7 +48,7 @@ class DQTrainer(BaseTrainer):
         self.ce_loss = self.losses['CE']
 
         # metrics
-        keys_loss = ['loss1', 'loss2']
+        keys_loss = ['L1_loss', 'CE_loss']
         keys_iter = [m.__name__ for m in self.metrics_iter]
         keys_epoch = [m.__name__ for m in self.metrics_epoch]
         self.train_metrics = MetricTracker(
@@ -65,7 +67,7 @@ class DQTrainer(BaseTrainer):
         self.lr_scheduler1 = self.lr_schedulers['DQNet']
         self.lr_scheduler2 = self.lr_schedulers['DQNetclf']
 
-        self.clf_start_epoch = 1
+        self.clf_start_epoch = 2
 
     def _train_epoch(self, epoch):
         """
@@ -81,7 +83,7 @@ class DQTrainer(BaseTrainer):
             outputs = torch.FloatTensor().to(self.device)
             targets = torch.FloatTensor().to(self.device)
 
-        train_loader = self.train_data_loaders["data"]
+        train_loader = self.train_data_loaders[self.dataset_name]
         start = time.time()
         for batch_idx, (face, depth, target) in enumerate(train_loader):
             face, depth, target = face.to(self.device), depth.to(self.device), target.to(self.device).long()
@@ -99,7 +101,7 @@ class DQTrainer(BaseTrainer):
 
             self.train_step += 1
             self.writer.set_step(self.train_step)
-            self.train_metrics.iter_update("loss1", loss1.item())
+            self.train_metrics.iter_update("L1_loss", loss1.item())
 
             # 01
             if epoch > self.clf_start_epoch:
@@ -110,7 +112,7 @@ class DQTrainer(BaseTrainer):
                 loss2.backward()
                 self.optimizer2.step()
 
-                self.train_metrics.iter_update("loss2", loss2.item())
+                self.train_metrics.iter_update("CE_loss", loss2.item())
 
             for met in self.metrics_iter:
                 self.train_metrics.iter_update(met.__name__, met(target, output_depth))
@@ -169,7 +171,7 @@ class DQTrainer(BaseTrainer):
                 outputs = torch.FloatTensor().to(self.device)
                 targets = torch.FloatTensor().to(self.device)
 
-            valid_loader = self.valid_data_loaders["data"]
+            valid_loader = self.valid_data_loaders[self.dataset_name]
             for batch_idx, (face, depth, target) in enumerate(valid_loader):
                 face, depth, target = face.to(self.device), depth.to(self.device), target.to(self.device).long()
 
@@ -182,13 +184,13 @@ class DQTrainer(BaseTrainer):
 
                 self.valid_step += 1
                 self.writer.set_step(self.valid_step, "valid")
-                self.valid_metrics.iter_update("loss1", loss1.item())
+                self.valid_metrics.iter_update("L1_loss", loss1.item())
 
                 if epoch > self.clf_start_epoch:
                     output_01 = self.DQNetclf(summap)
                     loss2 = self.ce_loss(output_01, target)
 
-                    self.valid_metrics.iter_update("loss2", loss2.item())
+                    self.valid_metrics.iter_update("CE_loss", loss2.item())
 
                 for met in self.metrics_iter:
                     self.valid_metrics.iter_update(met.__name__, met(target, output_depth))
@@ -198,6 +200,7 @@ class DQTrainer(BaseTrainer):
 
             if self.metrics_threshold is not None:
                 self.threshold = self.metrics_threshold(targets, outputs)
+                self.logger.info(f"Threshold: {self.threshold}")
 
         valid_log = self.valid_metrics.result()
 

@@ -16,7 +16,7 @@
     "datasets": {
         "imbalanced": false,
         "train": {
-            "data": {
+            "MSU": {
                 "module": "data_loaders.MSU_dataset",
                 "type": "MSUDataset",
                 "kwargs": {
@@ -28,7 +28,7 @@
         "valid": {
         },
         "test": {
-            "data": {
+            "MSU": {
                 "module": "data_loaders.MSU_dataset",
                 "type": "MSUDataset",
                 "kwargs": {
@@ -40,7 +40,7 @@
     },
     "data_loaders": {
         "train": {
-            "data": {
+            "MSU": {
                 "module": "data_loaders.valid_loader",
                 "type": "ValidDataLoader",
                 "kwargs": {
@@ -57,7 +57,7 @@
         "valid": {
         },
         "test": {
-            "data": {
+            "MSU": {
                 "module": "data_loaders.valid_loader",
                 "type": "ValidDataLoader",
                 "kwargs": {
@@ -154,10 +154,10 @@
             "kwargs": {
                 "apex": false,
 
-                "epochs": 1,
+                "epochs": 4,
                 "len_epoch": null,
 
-                "save_period": 10,
+                "save_period": 1,
                 "save_the_best": true,
                 "verbosity": 2,
 

@@ -30,7 +30,7 @@ def test(config):
     # datasets
     test_datasets = dict()
     keys = ["datasets", "test"]
-    name = "data"
+    name = "MSU"
     test_datasets[name] = config.init_obj([*keys, name])
 
     repeat_time = config["cross_validation"]["repeat_time"]
@@ -43,7 +43,7 @@ def test(config):
         # data_loaders
         test_data_loaders = dict()
         keys = ["data_loaders", "test"]
-        name = "data"
+        name = "MSU"
         dataset = test_datasets[name]
         loaders = config.init_obj([*keys, name], dataset)
         test_data_loaders[name] = loaders.test_loader
