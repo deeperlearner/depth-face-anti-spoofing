@@ -62,7 +62,7 @@ while getopts "abc" flag; do
       TYPE="run"
 
       CONFIG="DQNet_with_clf"
-      EXP="DQNet_with_clf"
+      EXP="debug"
       RUN_ID=${VERSION}
       python3 mains/main.py -c "configs/$CONFIG.json" --mode train --run_id $RUN_ID --name $EXP --k_fold 1
 

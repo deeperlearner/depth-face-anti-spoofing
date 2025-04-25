@@ -1,12 +1,15 @@
 import os
+import time
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from torchvision.utils import make_grid
 
 from base import BaseTrainer
-from utils import inf_loop, MetricTracker
+from models.metric import MetricTracker
+from utils import inf_loop, consuming_time
 
 
 # pretrain DQNet
@@ -23,18 +26,15 @@ class DQTrainer(BaseTrainer):
             self._resume_checkpoint(resume)
 
         # data_loaders
-        ## oulu
-        self.oulu_loader = self.data_loaders['oulu']
-        self.valid_data_loader = self.oulu_loader.valid_loader
-        self.do_validation = self.valid_data_loader is not None
+        self.do_validation = self.valid_data_loaders["data"] is not None
         if self.len_epoch is None:
             # epoch-based training
-            self.len_epoch = len(self.oulu_loader)
+            self.len_epoch = len(self.train_data_loaders["data"])
         else:
             # iteration-based training
-            self.oulu_loader = inf_loop(self.oulu_loader)
-            self.len_epoch = self.len_epoch
-        self.log_step = int(np.sqrt(self.oulu_loader.batch_size))
+            self.train_data_loaders["data"] = inf_loop(self.train_data_loaders["data"])
+        self.log_step = int(np.sqrt(self.train_data_loaders["data"].batch_size))
+        self.train_step, self.valid_step = 0, 0
 
         # models
         self.DQNet = self.models['DQNet']
@@ -46,14 +46,13 @@ class DQTrainer(BaseTrainer):
         self.ce_loss = self.losses['CE']
 
         # metrics
-        keys_loss = ["loss"]
         keys_iter = [m.__name__ for m in self.metrics_iter]
         keys_epoch = [m.__name__ for m in self.metrics_epoch]
         self.train_metrics = MetricTracker(
-            keys_loss + keys_iter, keys_epoch, writer=self.writer
+            keys_iter, keys_epoch, writer=self.writer
         )
         self.valid_metrics = MetricTracker(
-            keys_loss + keys_iter, keys_epoch, writer=self.writer
+            keys_iter, keys_epoch, writer=self.writer
         )
 
         # optimizers
@@ -75,7 +74,13 @@ class DQTrainer(BaseTrainer):
         self.DQNet.train()
         self.DQNetclf.train()
         self.train_metrics.reset()
-        for batch_idx, (face, depth, target) in enumerate(self.oulu_loader):
+        if len(self.metrics_epoch) > 0:
+            outputs = torch.FloatTensor().to(self.device)
+            targets = torch.FloatTensor().to(self.device)
+
+        train_loader = self.train_data_loaders["data"]
+        start = time.time()
+        for batch_idx, (face, depth, target) in enumerate(train_loader):
             face, depth, target = face.to(self.device), depth.to(self.device), target.to(self.device).long()
 
             # depth
@@ -85,6 +90,13 @@ class DQTrainer(BaseTrainer):
             loss1.backward()
             self.optimizer1.step()
             output_depth = output.view(output.size(0), -1).mean(1)
+            if len(self.metrics_epoch) > 0:
+                outputs = torch.cat((outputs, output_depth))
+                targets = torch.cat((targets, target))
+
+            self.train_step += 1
+            self.writer.set_step(self.train_step)
+            self.train_metrics.iter_update("loss1", loss1.item())
 
             # 01
             if epoch > 100:
@@ -95,35 +107,47 @@ class DQTrainer(BaseTrainer):
                 loss2.backward()
                 self.optimizer2.step()
 
-            self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update('loss1', loss1.item())
-            self.train_metrics.update('loss2', loss2.item())
-            for met in self.metrics:
-                if met.__name__ == 'accuracy':
-                    self.train_metrics.update(met.__name__, met(output_01, target))
-                elif met.__name__ == 'auc':
-                    self.train_metrics.update(met.__name__, met(output_depth, target))
+                self.train_metrics.iter_update("loss2", loss2.item())
+
+                for met in self.metrics_iter:
+                    self.train_metrics.iter_update(met.__name__, met(target, output_01))
 
             if batch_idx % self.log_step == 0:
-                self.logger.debug('Train Epoch: {} {} Loss1: {:.6f} Loss2: {:.6f}'.format(
-                    epoch,
-                    self._progress(batch_idx),
-                    loss1.item(),
-                    loss2.item()
-                    ))
-                #self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                epoch_debug = f"Train Epoch: {epoch} {self._progress(batch_idx)} "
+                current_metrics = self.train_metrics.current()
+                metrics_debug = ", ".join(
+                    f"{key}: {value:.6f}" for key, value in current_metrics.items()
+                )
+                self.logger.debug(epoch_debug + metrics_debug)
+                # self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
 
             if batch_idx == self.len_epoch:
                 break
-        log = self.train_metrics.result()
+        end = time.time()
+
+        for met in self.metrics_epoch:
+            self.train_metrics.epoch_update(met.__name__, met(targets, outputs))
+
+        train_log = self.train_metrics.result()
 
         if self.do_validation:
-            val_log = self._valid_epoch(epoch)
-            log.update(**{'val_'+k : v for k, v in val_log.items()})
+            valid_log = self._valid_epoch(epoch)
+            valid_log.set_index("val_" + valid_log.index.astype(str), inplace=True)
 
         if self.do_lr_scheduling:
             self.lr_scheduler1.step()
             self.lr_scheduler2.step()
+
+        log = pd.concat([train_log, valid_log])
+        epoch_log = {
+            "epochs": epoch,
+            "iterations": self.len_epoch * epoch,
+            "Runtime": consuming_time(start, end),
+        }
+        epoch_info = ", ".join(f"{key}: {value}" for key, value in epoch_log.items())
+        logger_info = f"{epoch_info}\n{log}"
+        self.logger.info(logger_info)
+
         return log
 
     def _valid_epoch(self, epoch):
@@ -137,35 +161,49 @@ class DQTrainer(BaseTrainer):
         self.DQNetclf.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
-            for batch_idx, (face, depth, target) in enumerate(self.valid_data_loader):
+            if len(self.metrics_epoch) > 0:
+                outputs = torch.FloatTensor().to(self.device)
+                targets = torch.FloatTensor().to(self.device)
+
+            valid_loader = self.valid_data_loaders["data"]
+            for batch_idx, (face, depth, target) in enumerate(valid_loader):
                 face, depth, target = face.to(self.device), depth.to(self.device), target.to(self.device).long()
 
                 summap, output = self.DQNet(face)
                 loss1 = self.l1_loss(output, depth)# + self.mse_loss(output, depth)
                 output_depth = output.view(output.size(0), -1).mean(1)
+                if len(self.metrics_epoch) > 0:
+                    outputs = torch.cat((outputs, output_depth))
+                    targets = torch.cat((targets, target))
 
-                output_01 = self.DQNetclf(summap)
-                loss2 = self.ce_loss(output_01, target)
+                self.valid_step += 1
+                self.writer.set_step(self.valid_step, "valid")
+                self.valid_metrics.iter_update("loss1", loss1.item())
 
-                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx, 'valid')
-                self.valid_metrics.update('loss1', loss1.item())
-                self.valid_metrics.update('loss2', loss2.item())
-                for met in self.metrics:
-                    if met.__name__ == 'accuracy':
-                        self.valid_metrics.update(met.__name__, met(output_01, target))
-                    elif met.__name__ == 'auc':
-                        self.valid_metrics.update(met.__name__, met(output_depth, target))
-                #self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                if epoch > 100:
+                    output_01 = self.DQNetclf(summap)
+                    loss2 = self.ce_loss(output_01, target)
 
-        # add histogram of model parameters to the tensorboard
-        for name, param in self.DQNet.named_parameters():
-            self.writer.add_histogram(name, param, bins='auto')
+                    self.valid_metrics.iter_update("loss2", loss2.item())
 
-        return self.valid_metrics.result()
+                    for met in self.metrics_iter:
+                        self.valid_metrics.iter_update(met.__name__, met(target, output_01))
+
+            for met in self.metrics_epoch:
+                self.valid_metrics.epoch_update(met.__name__, met(targets, outputs))
+
+            if self.metrics_threshold is not None:
+                self.threshold = self.metrics_threshold(targets, outputs)
+
+        valid_log = self.valid_metrics.result()
+
+        return valid_log
 
     def _progress(self, batch_idx):
-        ratio = '[{}/{} ({:.0f}%)]'
-        return ratio.format(batch_idx, self.len_epoch, 100.0 * batch_idx / self.len_epoch)
+        ratio = "[{}/{} ({:.0f}%)]"
+        return ratio.format(
+            batch_idx, self.len_epoch, 100.0 * batch_idx / self.len_epoch
+        )
 
     def _resume_checkpoint(self, resume_path):
         """

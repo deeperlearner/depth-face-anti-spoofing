@@ -17,10 +17,10 @@
         "imbalanced": false,
         "train": {
             "data": {
-                "module": "data_loaders.*_dataset",
-                "type": "*Dataset",
+                "module": "data_loaders.MSU_dataset",
+                "type": "MSUDataset",
                 "kwargs": {
-                    "data_dir": "./data",
+                    "data_dir": "/media/back/home/chuck/Dataset/MSU-MFSD",
                     "mode": "train"
                 }
             }
@@ -29,10 +29,10 @@
         },
         "test": {
             "data": {
-                "module": "data_loaders.*_dataset",
-                "type": "*Dataset",
+                "module": "data_loaders.MSU_dataset",
+                "type": "MSUDataset",
                 "kwargs": {
-                    "data_dir": "./data",
+                    "data_dir": "/media/back/home/chuck/Dataset/MSU-MFSD",
                     "mode": "test"
                 }
             }
@@ -154,7 +154,7 @@
             "kwargs": {
                 "apex": false,
 
-                "epochs": 200,
+                "epochs": 2,
                 "len_epoch": null,
 
                 "save_period": 10,
