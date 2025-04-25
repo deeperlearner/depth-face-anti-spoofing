@@ -46,13 +46,14 @@ class DQTrainer(BaseTrainer):
         self.ce_loss = self.losses['CE']
 
         # metrics
+        keys_loss = ['loss1', 'loss2']
         keys_iter = [m.__name__ for m in self.metrics_iter]
         keys_epoch = [m.__name__ for m in self.metrics_epoch]
         self.train_metrics = MetricTracker(
-            keys_iter, keys_epoch, writer=self.writer
+            keys_loss + keys_iter, keys_epoch, writer=self.writer
         )
         self.valid_metrics = MetricTracker(
-            keys_iter, keys_epoch, writer=self.writer
+            keys_loss + keys_iter, keys_epoch, writer=self.writer
         )
 
         # optimizers
@@ -63,6 +64,8 @@ class DQTrainer(BaseTrainer):
         self.do_lr_scheduling = len(self.lr_schedulers) > 0
         self.lr_scheduler1 = self.lr_schedulers['DQNet']
         self.lr_scheduler2 = self.lr_schedulers['DQNetclf']
+
+        self.clf_start_epoch = 1
 
     def _train_epoch(self, epoch):
         """
@@ -99,7 +102,7 @@ class DQTrainer(BaseTrainer):
             self.train_metrics.iter_update("loss1", loss1.item())
 
             # 01
-            if epoch > 100:
+            if epoch > self.clf_start_epoch:
                 self.optimizer2.zero_grad()
                 summap, output = self.DQNet(face)
                 output_01 = self.DQNetclf(summap)
@@ -109,8 +112,8 @@ class DQTrainer(BaseTrainer):
 
                 self.train_metrics.iter_update("loss2", loss2.item())
 
-                for met in self.metrics_iter:
-                    self.train_metrics.iter_update(met.__name__, met(target, output_01))
+            for met in self.metrics_iter:
+                self.train_metrics.iter_update(met.__name__, met(target, output_depth))
 
             if batch_idx % self.log_step == 0:
                 epoch_debug = f"Train Epoch: {epoch} {self._progress(batch_idx)} "
@@ -136,7 +139,8 @@ class DQTrainer(BaseTrainer):
 
         if self.do_lr_scheduling:
             self.lr_scheduler1.step()
-            self.lr_scheduler2.step()
+            if epoch > self.clf_start_epoch:
+                self.lr_scheduler2.step()
 
         log = pd.concat([train_log, valid_log])
         epoch_log = {
@@ -180,14 +184,14 @@ class DQTrainer(BaseTrainer):
                 self.writer.set_step(self.valid_step, "valid")
                 self.valid_metrics.iter_update("loss1", loss1.item())
 
-                if epoch > 100:
+                if epoch > self.clf_start_epoch:
                     output_01 = self.DQNetclf(summap)
                     loss2 = self.ce_loss(output_01, target)
 
                     self.valid_metrics.iter_update("loss2", loss2.item())
 
-                    for met in self.metrics_iter:
-                        self.valid_metrics.iter_update(met.__name__, met(target, output_01))
+                for met in self.metrics_iter:
+                    self.valid_metrics.iter_update(met.__name__, met(target, output_depth))
 
             for met in self.metrics_epoch:
                 self.valid_metrics.epoch_update(met.__name__, met(targets, outputs))

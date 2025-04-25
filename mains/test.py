@@ -61,7 +61,7 @@ def test(config):
 
         logger_model = get_logger("model", verbosity=0)
         models = dict()
-        name = "model"
+        name = "DQNet"
         model = config.init_obj(["models", name])
         logger_model.info(model)
         state_dict = checkpoint["models"][name]
@@ -72,7 +72,7 @@ def test(config):
         models[name] = model
 
         # losses
-        loss_fn = config.init_obj(["losses", "loss"])
+        loss_fn = config.init_obj(["losses", "L1"])
 
         # metrics
         metrics_epoch = [

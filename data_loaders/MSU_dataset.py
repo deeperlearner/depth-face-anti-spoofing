@@ -42,18 +42,34 @@ class MSUDataset(Dataset):
 
     def __getitem__(self, idx):
         if self.mode == "train":
-            # spoof
             real_idx = idx // 2
             if idx % 2 == 0:
+                # spoof
                 live = 0
                 face_file = self.attack_df.loc[real_idx % len(self.attack_df)]["path"]
                 face_file = os.path.join(self.data_dir, face_file)
                 depth = torch.zeros((1, 32, 32))
-            else: # live
+            else:
+                # live
                 live = 1
                 face_file = self.face_df.loc[real_idx % len(self.face_df)]["path"]
                 face_file = os.path.join(self.data_dir, face_file)
-                depth_file = self.depth_df.loc[idx % len(self.depth_df)]["path"]
+                depth_file = self.depth_df.loc[real_idx % len(self.depth_df)]["path"]
+                depth_file = os.path.join(self.data_dir, depth_file)
+        else:
+            if idx < len(self.attack_df):
+                # spoof
+                live = 0
+                face_file = self.attack_df.loc[idx]["path"]
+                face_file = os.path.join(self.data_dir, face_file)
+                depth = torch.zeros((1, 32, 32))
+            else:
+                idx = idx - len(self.attack_df)
+                # live
+                live = 1
+                face_file = self.face_df.loc[idx]["path"]
+                face_file = os.path.join(self.data_dir, face_file)
+                depth_file = self.depth_df.loc[idx]["path"]
                 depth_file = os.path.join(self.data_dir, depth_file)
 
         image = Image.open(face_file)
@@ -63,14 +79,11 @@ class MSUDataset(Dataset):
             depth = Image.open(depth_file).convert('L')
             depth = self.depth_transform(depth)
 
-        if self.mode == "train":
-            return image, depth, live
+        return image, depth, live
 
     def __len__(self):
         if self.mode == "train":
             return max(len(self.attack_df), len(self.face_df)) * 2
+            # return 256
         else:
             return len(self.attack_df) + len(self.face_df)
-
-if __name__ == "__main__":
-    dataset = MSUDataset()

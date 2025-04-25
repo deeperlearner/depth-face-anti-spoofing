@@ -154,7 +154,7 @@
             "kwargs": {
                 "apex": false,
 
-                "epochs": 2,
+                "epochs": 1,
                 "len_epoch": null,
 
                 "save_period": 10,
