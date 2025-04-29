@@ -1,4 +1,5 @@
 import torch
+from tqdm import tqdm
 
 
 class Tester:
@@ -13,16 +14,16 @@ class Tester:
         self.metrics_epoch = metrics_epoch
         self.test_metrics = test_metrics
 
-    def test(self):
+    def test(self, testset_name="MSU"):
         self.model.eval()
         with torch.no_grad():
             print("testing...")
-            test_loader = self.test_data_loaders["MSU"]
+            test_loader = self.test_data_loaders[testset_name]
 
             if len(self.metrics_epoch) > 0:
                 outputs = torch.FloatTensor().to(self.device)
                 targets = torch.FloatTensor().to(self.device)
-            for batch_idx, (face, depth, target) in enumerate(test_loader):
+            for batch_idx, (face, depth, target) in tqdm(enumerate(test_loader), total=len(test_loader)):
                 face, depth, target = face.to(self.device), depth.to(self.device), target.to(self.device).long()
 
                 summap, output = self.model(face)

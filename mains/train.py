@@ -53,7 +53,7 @@ def train(config, do_mp=False, fold_idx=0):
     device, device_ids = prepare_device(config["n_gpu"])
 
     # datasets
-    datasets_name = "MSU"
+    datasets_name = config.run_args.trainset_name
     train_datasets = dict()
     valid_datasets = dict()
     ## train

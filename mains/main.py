@@ -25,6 +25,7 @@ if __name__ == "__main__":
     run_args.add_argument("--mode", default="train", type=str)
     run_args.add_argument("--resume", default=None, type=str)
     run_args.add_argument("--run_id", default=None, type=str)
+    run_args.add_argument("--trainset_name", default="MSU", type=str)
 
     # custom cli options to modify configuration from default values given in json file.
     mod_args = args.add_argument_group("mod_args")
@@ -51,6 +52,7 @@ if __name__ == "__main__":
 
     # config.test_args: additional arguments for testing
     test_args = args.add_argument_group("test_args")
+    test_args.add_argument("--testset_name", default="MSU", type=str)
     test_args.add_argument("--bootstrapping", action="store_true")
     test_args.add_argument("--bootstrap_times", default=1000, type=int)
     test_args.add_argument("--output_path", default=None, type=str)

@@ -67,7 +67,7 @@ class DQTrainer(BaseTrainer):
         self.lr_scheduler1 = self.lr_schedulers['DQNet']
         self.lr_scheduler2 = self.lr_schedulers['DQNetclf']
 
-        self.clf_start_epoch = 2
+        self.clf_start_epoch = self.epochs // 2 # self.epochs is set in config.json
 
     def _train_epoch(self, epoch):
         """

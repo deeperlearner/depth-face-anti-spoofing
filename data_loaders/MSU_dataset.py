@@ -87,3 +87,8 @@ class MSUDataset(Dataset):
             # return 2560
         else:
             return len(self.attack_df) + len(self.face_df)
+
+
+if __name__ == "__main__":
+    dataset = MSUDataset(data_dir="/media/back/home/chuck/Dataset/MSU-MFSD", mode="test")
+    print(len(dataset))

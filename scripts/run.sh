@@ -3,7 +3,7 @@
 #  PyTorch Template
 # ------------------
 # Repository    : https://github.com/deeperlearner/pytorch-template
-VERSION="v1.0.0"
+VERSION="v1.1.0"
 
 
 # This script run train and test
@@ -62,12 +62,20 @@ while getopts "abc" flag; do
       TYPE="run"
 
       CONFIG="DQNet_with_clf"
-      # EXP="debug"
-      EXP="DQNet_with_clf"
-      RUN_ID=${VERSION}
-      python3 mains/main.py -c "configs/$CONFIG.json" --mode train --run_id $RUN_ID --name $EXP --k_fold 1
+      EXP="debug"
+      # EXP="DQNet_with_clf"
+
+      # train
+      # RUN_ID="train_on_MSU"
+      # python3 mains/main.py -c "configs/$CONFIG.json" --mode train --run_id $RUN_ID --trainset_name "MSU" --name $EXP --k_fold 1
+      RUN_ID="train_on_oulu"
+      python3 mains/main.py -c "configs/$CONFIG.json" --mode train --run_id $RUN_ID --trainset_name "oulu" --name $EXP --k_fold 1
+
+      # test
       python3 mains/main.py -c "saved/$EXP/$RUN_ID/${CONFIG##*/}.json" --mode test \
-          --resume "saved/$EXP/$RUN_ID/model/model_best.pth" --run_id $RUN_ID --bootstrapping
+          --resume "saved/$EXP/$RUN_ID/model/model_best.pth" --run_id $RUN_ID --testset_name "MSU" #--bootstrapping
+      python3 mains/main.py -c "saved/$EXP/$RUN_ID/${CONFIG##*/}.json" --mode test \
+          --resume "saved/$EXP/$RUN_ID/model/model_best.pth" --run_id $RUN_ID --testset_name "Siw" #--bootstrapping
 
       time_log
       ;;

@@ -23,9 +23,25 @@
                     "data_dir": "/media/back/home/chuck/Dataset/MSU-MFSD",
                     "mode": "train"
                 }
+            },
+            "oulu": {
+                "module": "data_loaders.oulu_dataset",
+                "type": "ouluDataset",
+                "kwargs": {
+                    "data_dir": "/media/back/home/chuck/Dataset/Oulu_Npu",
+                    "mode": "train"
+                }
             }
         },
         "valid": {
+            "oulu": {
+                "module": "data_loaders.oulu_dataset",
+                "type": "ouluDataset",
+                "kwargs": {
+                    "data_dir": "/media/back/home/chuck/Dataset/Oulu_Npu",
+                    "mode": "valid"
+                }
+            }
         },
         "test": {
             "MSU": {
@@ -33,6 +49,14 @@
                 "type": "MSUDataset",
                 "kwargs": {
                     "data_dir": "/media/back/home/chuck/Dataset/MSU-MFSD",
+                    "mode": "test"
+                }
+            },
+            "Siw": {
+                "module": "data_loaders.SIW_dataset",
+                "type": "SIWDataset",
+                "kwargs": {
+                    "data_dir": "/media/back/internal/share/antispoof_data/Siw/crop/train",
                     "mode": "test"
                 }
             }
@@ -52,12 +76,51 @@
                     },
                     "do_transform": false
                 }
+            },
+            "oulu": {
+                "module": "data_loaders.valid_loader",
+                "type": "ValidDataLoader",
+                "kwargs": {
+                    "validation_split": 0,
+                    "DataLoader_kwargs": {
+                        "batch_size": 64,
+                        "shuffle": true,
+                        "num_workers": 4
+                    },
+                    "do_transform": false
+                }
             }
         },
         "valid": {
+            "oulu": {
+                "module": "data_loaders.valid_loader",
+                "type": "ValidDataLoader",
+                "kwargs": {
+                    "validation_split": 0,
+                    "DataLoader_kwargs": {
+                        "batch_size": 64,
+                        "shuffle": true,
+                        "num_workers": 4
+                    },
+                    "do_transform": false
+                }
+            }
         },
         "test": {
             "MSU": {
+                "module": "data_loaders.valid_loader",
+                "type": "ValidDataLoader",
+                "kwargs": {
+                    "validation_split": 0,
+                    "DataLoader_kwargs": {
+                        "batch_size": 64,
+                        "shuffle": false,
+                        "num_workers": 4
+                    },
+                    "do_transform": false
+                }
+            },
+            "Siw": {
                 "module": "data_loaders.valid_loader",
                 "type": "ValidDataLoader",
                 "kwargs": {
@@ -154,7 +217,7 @@
             "kwargs": {
                 "apex": false,
 
-                "epochs": 4,
+                "epochs": 2,
                 "len_epoch": null,
 
                 "save_period": 1,
